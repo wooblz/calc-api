@@ -2,8 +2,10 @@ package main
 
 import (
     "net/http"
-    "log"
+    "log/slog"
     "encoding/json"
+    "os"
+    "log"
 )
 func (s server) ServeHTTP(w http.ResponseWriter, r *http.Request)  {
     switch r.URL.Path  {
@@ -13,6 +15,7 @@ func (s server) ServeHTTP(w http.ResponseWriter, r *http.Request)  {
 }
 func (s server) AddHandler(w http.ResponseWriter, r *http.Request)  {
     w.Header().Set("Content-Type", "application/json")
+    logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
     defer r.Body.Close()
     
     jsonDecoder := json.NewDecoder(r.Body)
@@ -20,7 +23,16 @@ func (s server) AddHandler(w http.ResponseWriter, r *http.Request)  {
     calcReq := TwoValues{}
     err := jsonDecoder.Decode(&calcReq)
     if err != nil  {
-        log.Fatal(err)
+        logger.Error("Failed to decode JSON",
+            "path", r.URL.Path,
+            "ip", r.RemoteAddr,
+            "error", err.Error(),
+        )
+        w.WriteHeader(http.StatusBadRequest)
+        json.NewEncoder(w).Encode(map[string]string {
+            "error":"Invalid JSONInput",
+        })
+        return
     }
 
     solution := SingleValue{}
@@ -28,10 +40,22 @@ func (s server) AddHandler(w http.ResponseWriter, r *http.Request)  {
 
     jsonBytes, err := json.Marshal(solution)
     if err != nil  {
-        log.Fatal(err)
+        logger.Error("Failed to marshal data",
+            "path",r.URL.Path,
+            "ip", r.RemoteAddr,
+            "error", err.Error(),
+        )
+        w.WriteHeader(http.StatusInternalServerError)
+        json.NewEncoder(w).Encode(map[string]string  {
+            "error": "Failed to Encode",
+        })
+        return
     }
-    log.Println(string(jsonBytes))
     w.Write(jsonBytes)
+    logger.Info(string(jsonBytes),
+        "path",r.URL.Path,
+        "ip", r.RemoteAddr,
+    )
 }
 
 func main()  {
