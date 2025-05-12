@@ -5,7 +5,6 @@ import (
     "log/slog"
     "encoding/json"
     "os"
-    "log"
 )
 func (s server) ServeHTTP(w http.ResponseWriter, r *http.Request)  {
     switch r.URL.Path  {
@@ -17,6 +16,8 @@ func (s server) ServeHTTP(w http.ResponseWriter, r *http.Request)  {
         s.DivisionHandler(w,r)
     case "/multiply":
         s.MultiplicationHandler(w,r)
+    case "/sum":
+        s.SumHandler(w,r)
     }
 
 }
@@ -135,7 +136,6 @@ func (s server) DivisionHandler(w http.ResponseWriter,r *http.Request)  {
         logger.Error("Invalid Divisor",
             "path", r.URL.Path,
             "ip", r.RemoteAddr,
-            "error", err.Error(),
         )
         w.WriteHeader(http.StatusBadRequest) 
         json.NewEncoder(w).Encode(map[string]string  {
@@ -211,7 +211,51 @@ func (s server) MultiplicationHandler(w http.ResponseWriter,r *http.Request)  {
         "ip", r.RemoteAddr,
     )
 }
-func main()  {
-    log.Fatal(http.ListenAndServe(":8080",server{}))
+func (s server) SumHandler(w http.ResponseWriter, r *http.Request)  {
+    w.Header().Set("Content-Type", "application/json")
+    logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+    defer r.Body.Close()
+    
+    jsonDecoder := json.NewDecoder(r.Body)
+
+    calcReq := ArrayValue{}
+    err := jsonDecoder.Decode(&calcReq)
+    if err != nil  {
+        logger.Error("Failed to decode JSON",
+            "path", r.URL.Path,
+            "ip", r.RemoteAddr,
+            "error", err.Error(),
+        )
+        w.WriteHeader(http.StatusBadRequest)
+        json.NewEncoder(w).Encode(map[string]string {
+            "error":"Invalid JSONInput",
+        })
+        return
+    }
+
+    solution := SingleValue{}
+    for _,v := range calcReq.Value1  {
+        solution.Value1+= v
+    }
+
+    jsonBytes, err := json.Marshal(solution)
+    if err != nil  {
+        logger.Error("Failed to marshal data",
+            "path",r.URL.Path,
+            "ip", r.RemoteAddr,
+            "error", err.Error(),
+        )
+        w.WriteHeader(http.StatusInternalServerError)
+        json.NewEncoder(w).Encode(map[string]string  {
+            "error": "Failed to Encode",
+        })
+        return
+    }
+    w.WriteHeader(http.StatusOK)
+    w.Write(jsonBytes)
+    logger.Info(string(jsonBytes),
+        "path",r.URL.Path,
+        "ip", r.RemoteAddr,
+    )
 }
 

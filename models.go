@@ -10,5 +10,5 @@ type SingleValue  struct {
 }
 
 type ArrayValue struct  {
-    Value1 float64[] `json:value1`
+    Value1 []float64 `json:value1`
 }
