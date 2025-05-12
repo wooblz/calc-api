@@ -8,3 +8,7 @@ type TwoValues struct {
 type SingleValue  struct {
     Value1 float64 `json:value1`
 }
+
+type ArrayValue struct  {
+    Value1 float64[] `json:value1`
+}
